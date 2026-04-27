@@ -44,6 +44,8 @@ const CONVEYOR_ITEM_SLOT_START_X = -462;
 const CONVEYOR_ITEM_SLOT_GAP = 132;
 const CONVEYOR_DEVICE_DEFAULT_X = 0;
 const CONVEYOR_DEVICE_DEFAULT_Y = CONVEYOR_Y;
+const CONVEYOR_SOURCE_WIDTH = 720;
+const CONVEYOR_SOURCE_HEIGHT = 140;
 const BOARD_TOP_Y = -318.5;
 const BOARD_BOTTOM_Y = -743.5;
 const BOARD_TOP_WIDTH = 568;
@@ -356,34 +358,37 @@ export class GameMain extends Component {
     }
 
     private createConveyor(): void {
+        const conveyorHeight = this.getConveyorRenderHeight();
+        const conveyorCenterY = -DESIGN_HEIGHT / 2 + conveyorHeight / 2;
         for (let i = 0; i < 2; i++) {
-            const belt = this.makeSpriteNode(`ConveyorBelt_${i}`, i * DESIGN_WIDTH, CONVEYOR_Y, DESIGN_WIDTH, 300);
+            const belt = this.makeSpriteNode(`ConveyorBelt_${i}`, i * DESIGN_WIDTH, conveyorCenterY, DESIGN_WIDTH, conveyorHeight);
             this.uiLayer.addChild(belt);
             this.conveyorBeltNodes.push(belt);
-            this.loadSprite('roc/ui/conveyor').then((frame) => {
+            this.loadTextureSpriteFrame('roc/ui/conveyor').then((frame) => {
                 const sprite = belt.getComponent(Sprite);
                 if (sprite && frame) {
                     sprite.spriteFrame = frame;
-                    this.fitNodeToWidthBottomAligned(belt, frame, DESIGN_WIDTH, i * DESIGN_WIDTH);
+                    this.fitConveyorNode(belt, i * DESIGN_WIDTH);
                 }
             });
         }
 
-        const device = this.makeSpriteNode('ConveyorDevice', this.conveyorDevicePosition.x, this.conveyorDevicePosition.y, DESIGN_WIDTH, 300);
+        const device = this.makeSpriteNode('ConveyorDevice', this.conveyorDevicePosition.x, conveyorCenterY, DESIGN_WIDTH, conveyorHeight);
         this.uiLayer.addChild(device);
         device.setSiblingIndex(500);
         this.conveyorDeviceNode = device;
-        this.loadSprite('roc/ui/conveyor_device').then((frame) => {
+        this.loadTextureSpriteFrame('roc/ui/conveyor_device').then((frame) => {
             const sprite = device.getComponent(Sprite);
             if (sprite && frame) {
                 sprite.spriteFrame = frame;
-                this.fitNodeToWidthBottomAligned(device, frame, DESIGN_WIDTH, this.conveyorDevicePosition.x);
+                this.fitConveyorNode(device, this.conveyorDevicePosition.x);
             }
         });
         if (DEBUG_BOARD_CALIBRATION) {
             device.on(Node.EventType.TOUCH_MOVE, (event: EventTouch) => {
                 const p = this.touchToRoot(event);
-                this.conveyorDevicePosition = new Vec3(p.x, p.y, 0);
+                const centerY = this.getConveyorCenterY();
+                this.conveyorDevicePosition = new Vec3(p.x, centerY, 0);
                 device.setPosition(this.conveyorDevicePosition);
                 this.saveConveyorDeviceCalibration();
                 this.refreshBoardDebugLabel();
@@ -493,9 +498,9 @@ export class GameMain extends Component {
     private updateConveyor(dt: number): void {
         const beltTravel = CONVEYOR_SPEED * dt;
         for (const belt of this.conveyorBeltNodes) {
-            belt.setPosition(belt.position.x - beltTravel, belt.position.y, 0);
+            belt.setPosition(belt.position.x - beltTravel, this.getConveyorCenterY(), 0);
             if (belt.position.x <= -DESIGN_WIDTH) {
-                belt.setPosition(belt.position.x + DESIGN_WIDTH * 2, belt.position.y, 0);
+                belt.setPosition(belt.position.x + DESIGN_WIDTH * 2, this.getConveyorCenterY(), 0);
             }
         }
 
@@ -1812,13 +1817,18 @@ export class GameMain extends Component {
         this.setSize(node, width * scale, height * scale);
     }
 
-    private fitNodeToWidthBottomAligned(node: Node, frame: SpriteFrame, width: number, x: number): void {
-        const rect = frame.rect;
-        const sourceWidth = rect.width || 720;
-        const sourceHeight = rect.height || 200;
-        const height = sourceHeight * (width / sourceWidth);
-        this.setSize(node, width, height);
-        node.setPosition(x, -DESIGN_HEIGHT / 2 + height / 2, 0);
+    private fitConveyorNode(node: Node, x: number): void {
+        const height = this.getConveyorRenderHeight();
+        this.setSize(node, DESIGN_WIDTH, height);
+        node.setPosition(x, this.getConveyorCenterY(), 0);
+    }
+
+    private getConveyorRenderHeight(): number {
+        return CONVEYOR_SOURCE_HEIGHT * (DESIGN_WIDTH / CONVEYOR_SOURCE_WIDTH);
+    }
+
+    private getConveyorCenterY(): number {
+        return -DESIGN_HEIGHT / 2 + this.getConveyorRenderHeight() / 2;
     }
 
     private hasCanvasInParents(node: Node): boolean {
