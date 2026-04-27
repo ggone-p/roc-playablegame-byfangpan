@@ -42,7 +42,7 @@ const CONVEYOR_SPEED = 170;
 const CONVEYOR_ITEM_SPAWN_X = 430;
 const CONVEYOR_ITEM_SLOT_START_X = -462;
 const CONVEYOR_ITEM_SLOT_GAP = 132;
-const CONVEYOR_ITEM_Y_OFFSET = -48;
+const CONVEYOR_ITEM_Y_OFFSET = 0;
 const CONVEYOR_DEVICE_DEFAULT_X = 0;
 const CONVEYOR_DEVICE_DEFAULT_Y = CONVEYOR_Y;
 const CONVEYOR_SOURCE_WIDTH = 720;
@@ -242,7 +242,6 @@ export class GameMain extends Component {
         this.preloadMonsterFrames();
         this.preloadEffectFrames();
         this.preloadAudio();
-        this.addConveyorItem();
         this.addConveyorItem();
     }
 
