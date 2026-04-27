@@ -42,6 +42,7 @@ const CONVEYOR_SPEED = 170;
 const CONVEYOR_ITEM_SPAWN_X = 430;
 const CONVEYOR_ITEM_SLOT_START_X = -462;
 const CONVEYOR_ITEM_SLOT_GAP = 132;
+const CONVEYOR_ITEM_Y_OFFSET = -48;
 const CONVEYOR_DEVICE_DEFAULT_X = 0;
 const CONVEYOR_DEVICE_DEFAULT_Y = CONVEYOR_Y;
 const CONVEYOR_SOURCE_WIDTH = 720;
@@ -426,7 +427,7 @@ export class GameMain extends Component {
         }
         const cursor = this.makeSpriteNode('CustomCursor', 0, 0, 92, 78);
         this.uiLayer.addChild(cursor);
-        cursor.setSiblingIndex(2000);
+        cursor.setSiblingIndex(10000);
         cursor.active = false;
         this.cursorNode = cursor;
         this.loadSprite('roc/ui/finger').then((frame) => {
@@ -447,6 +448,7 @@ export class GameMain extends Component {
         const p = transform.convertToNodeSpaceAR(new Vec3(loc.x, loc.y, 0));
         this.cursorNode.active = true;
         this.cursorNode.setPosition(p.x + 24, p.y - 24, 0);
+        this.keepCursorOnTop();
     }
 
     private addConveyorItem(): void {
@@ -455,17 +457,18 @@ export class GameMain extends Component {
         }
         const kind = PIECES[Math.floor(Math.random() * PIECES.length)].id;
         const node = this.makePieceNode(`Conveyor_${kind}`, kind, 1, 80);
-        node.setPosition(CONVEYOR_ITEM_SPAWN_X, CONVEYOR_Y + 2, 0);
+        const conveyorItemY = this.getConveyorItemY();
+        node.setPosition(CONVEYOR_ITEM_SPAWN_X, conveyorItemY, 0);
         this.uiLayer.addChild(node);
         node.setSiblingIndex(120);
         const slotIndex = this.conveyor.length;
         const targetX = this.getConveyorSlotX(slotIndex);
-        const item: ConveyorItem = { kind, node, home: new Vec3(targetX, CONVEYOR_Y + 2, 0), targetX, moving: true };
+        const item: ConveyorItem = { kind, node, home: new Vec3(targetX, conveyorItemY, 0), targetX, moving: true };
         this.conveyor.push(item);
         this.bindConveyorDrag(item);
         this.layoutConveyor();
         this.conveyorDeviceNode?.setSiblingIndex(500);
-        this.cursorNode?.setSiblingIndex(2000);
+        this.keepCursorOnTop();
     }
 
     private bindConveyorDrag(item: ConveyorItem): void {
@@ -491,7 +494,7 @@ export class GameMain extends Component {
     private layoutConveyor(): void {
         this.conveyor.forEach((item, index) => {
             item.targetX = this.getConveyorSlotX(index);
-            item.home = new Vec3(item.targetX, CONVEYOR_Y + 2, 0);
+            item.home = new Vec3(item.targetX, this.getConveyorItemY(), 0);
         });
     }
 
@@ -512,18 +515,22 @@ export class GameMain extends Component {
             const pos = item.node.position;
             if (pos.x <= item.targetX) {
                 item.moving = false;
-                item.node.setPosition(item.targetX, CONVEYOR_Y + 2, 0);
+                item.node.setPosition(item.targetX, this.getConveyorItemY(), 0);
                 continue;
             }
 
             const nextX = Math.max(item.targetX, pos.x - beltTravel);
-            item.node.setPosition(nextX, CONVEYOR_Y + 2, 0);
+            item.node.setPosition(nextX, this.getConveyorItemY(), 0);
             item.moving = true;
         }
     }
 
     private getConveyorSlotX(index: number): number {
         return CONVEYOR_ITEM_SLOT_START_X + index * CONVEYOR_ITEM_SLOT_GAP;
+    }
+
+    private getConveyorItemY(): number {
+        return this.getConveyorCenterY() + CONVEYOR_ITEM_Y_OFFSET;
     }
 
     private startDragFromConveyor(item: ConveyorItem, event: EventTouch): void {
@@ -566,6 +573,7 @@ export class GameMain extends Component {
         const p = this.touchToRoot(event);
         node.setPosition(p.x, p.y, 0);
         node.setSiblingIndex(999);
+        this.keepCursorOnTop();
         tween(node).to(0.08, { scale: new Vec3(1.08, 1.08, 1) }).start();
         this.updateBoardHighlight(p);
         if (this.fingerNode) {
@@ -580,6 +588,13 @@ export class GameMain extends Component {
         const p = this.touchToRoot(event);
         this.dragState.node.setPosition(p.x, p.y, 0);
         this.updateBoardHighlight(p);
+        this.keepCursorOnTop();
+    }
+
+    private keepCursorOnTop(): void {
+        if (this.cursorNode?.isValid) {
+            this.cursorNode.setSiblingIndex(10000);
+        }
     }
 
     private endDrag(event: EventTouch): void {
@@ -804,7 +819,7 @@ export class GameMain extends Component {
         const lane = Math.floor(Math.random() * MONSTER_LANES);
         const hp = Math.floor(MONSTER_HP[kind] * (1 + (this.wave - 1) * 0.2));
         const x = this.getLaneX(lane, MONSTER_START_Y);
-        const shadowNode = this.makeSpriteNode(`MonsterShadow_${kind}`, x, MONSTER_START_Y - 58, MONSTER_BASE_SIZE[kind] * 0.92, MONSTER_BASE_SIZE[kind] * 0.38);
+        const shadowNode = this.makeSpriteNode(`MonsterShadow_${kind}`, x, MONSTER_START_Y - 58, MONSTER_BASE_SIZE[kind] * 0.74, MONSTER_BASE_SIZE[kind] * 0.3);
         this.monsterLayer.addChild(shadowNode);
         const node = this.makeSpriteNode(`Monster_${kind}`, x, MONSTER_START_Y, MONSTER_BASE_SIZE[kind], MONSTER_BASE_SIZE[kind]);
         this.monsterLayer.addChild(node);
@@ -872,7 +887,7 @@ export class GameMain extends Component {
             const perspectiveScale = this.getPerspectiveScale(nextY);
             monster.node.setScale(perspectiveScale, perspectiveScale, 1);
             monster.shadowNode.setPosition(nextX, nextY - 58 * perspectiveScale, 0);
-            monster.shadowNode.setScale(perspectiveScale, perspectiveScale, 1);
+            monster.shadowNode.setScale(perspectiveScale * 0.8, perspectiveScale * 0.8, 1);
             monster.eatCooldown = Math.max(0, monster.eatCooldown - dt);
 
             monster.frameTimer += dt;
